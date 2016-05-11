@@ -1,13 +1,19 @@
 """
-a
+Vinli Authentication for tornado
+
+The following is heavily based on Google/Facebook/Twitter/etc
+authentication in the core Tornado auth module.
+
+https://github.com/tornadoweb/tornado/blob/master/tornado/auth.py
 """
 import base64
+import functools
+import sys
 import tornado.auth
 
 from tornado.concurrent import chain_future
-from tornado.util import PY3
 
-if PY3:
+if sys.version_info >= (3, 0):
     import urllib.parse as urlparse
     import urllib.parse as urllib_parse
 else:
@@ -17,7 +23,8 @@ else:
 
 class VinliAuthLoginMixin(tornado.auth.OAuth2Mixin):
     """
-
+    Mixin to authenticate and perform authenticated requests to the
+    Vinli platform
     """
     _OAUTH_AUTHORIZE_URL = 'https://auth.vin.li/oauth/authorization/new'
     _OAUTH_ACCESS_TOKEN_URL = 'https://auth.vin.li/oauth/token'
@@ -29,7 +36,7 @@ class VinliAuthLoginMixin(tornado.auth.OAuth2Mixin):
     @tornado.auth._auth_return_future
     def get_authenticated_user(self, redirect_uri, code, callback):
         """
-
+        Do the oauth dance with the Vinli platform.
         """
         http = self.get_auth_http_client()
         args = urllib_parse.urlencode({
@@ -45,7 +52,8 @@ class VinliAuthLoginMixin(tornado.auth.OAuth2Mixin):
 
         headers = {
             'content-type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic {}'.format(base64.b64encode(creds))
+            'Authorization': 'Basic {}'.format(
+                base64.b64encode(creds.encode('ascii')))
         }
 
         http.fetch(
@@ -54,6 +62,21 @@ class VinliAuthLoginMixin(tornado.auth.OAuth2Mixin):
             method='POST', body=args,
             headers=headers
         )
+
+    def _on_access_token(self, future, response):
+        """
+        Callback after the access token is obtained
+        """
+        if response.error:
+            future.set_exception(
+                tornado.auth.AuthError(
+                    "Vinli Auth Error: {}".format(response)
+                )
+            )
+            return
+
+        args = tornado.escape.json_decode(response.body)
+        future.set_result(args)
 
     @tornado.auth._auth_return_future
     def oauth2_request(self, url, callback, access_token=None,
@@ -82,7 +105,9 @@ class VinliAuthLoginMixin(tornado.auth.OAuth2Mixin):
     @tornado.auth._auth_return_future
     def vinli_request(self, service, path, callback,
                       access_token=None, post_args=None, **kwargs):
-
+        """
+        Make an authenticated request to the vinli platform.
+        """
         url = 'https://{}{}{}'.format(
             service, self._VINLI_BASE_URL, path
         )

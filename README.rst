@@ -12,6 +12,21 @@ Installation
 
     pip install vinli-tornado-auth
 
+---------------------
+Settings Requirements
+---------------------
+
+Register and create an app at `https://dev.vin.li <dev.vin.li>`_
+
+In the app, create a ``web`` client type and take note of the 
+following values:
+
+* ``vinli_client_id`` - App Client Id
+* ``vinli_client_secret`` - App Client Secret
+* ``vinli_redirect_uri`` - A valid URL to redirect to. eg: ``http://localhost:8000/auth/login``
+
+Add these values to application ``settings``.
+
 -------------
 Example Usage
 -------------
@@ -23,7 +38,7 @@ Example Usage
     import tornado.gen
     import tornado.web
 
-    from vinli_tornado_auth import VinliAuthLoginMixin
+    from vinli_tornado_auth.auth import VinliAuthLoginMixin
 
     class LoginHandler(tornado.web.RequestHandler, VinliAuthLoginMixin):
         """
@@ -32,7 +47,7 @@ Example Usage
         @tornado.gen.coroutine
         def get(self):
             code = self.get_argument('code', None)
-            if note code:
+            if not code:
                 yield self.authorize_redirect(
                     redirect_uri=self.settings['vinli_redirect_uri'],
                     client_id=self.settings['vinli_client_id'],
@@ -96,3 +111,26 @@ Example Usage
         app.listen(8000)
         tornado.ioloop.IOLoop.instance().start()
 
+
+-----------------------------
+Making Authenticated Requests
+-----------------------------
+
+Use the ``vinli_request`` method to make authenticated requests to
+the platform after initial authentication has been completed.
+
+Get Trips for a device
+^^^^^^^^^^^^^^^^^^^^^^
+
+As with the `following example <http://docs.vin.li/en/latest/web/trip-services/index.html>`_
+from the Vinli API Documentation, a list of trips for device id
+``fe4bbc20-cc90-11e3-8e05-f3abac5b6b58`` can be retrieved with the following::
+
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def get(self):
+        trips = yield self.vinli_request(
+            'trips', '/api/v1/devices/fe4bbc20-cc90-11e3-8e05-f3abac5b6b58/trips',
+            access_token=self.current_user.get('token')
+        )
+        self.write(trips)
