@@ -16,7 +16,7 @@ Installation
 Settings Requirements
 ---------------------
 
-Register and create an app at `https://dev.vin.li <dev.vin.li>`_
+Register and create an app at `https://dev.vin.li <https://dev.vin.li>`_
 
 In the app, create a ``web`` client type and take note of the 
 following values:
